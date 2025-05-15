@@ -62,8 +62,8 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
     ExtMove* mid =
       std::partition(begin, end, [limit](const ExtMove& m) { return m.value >= limit; });
 
-    for (ExtMove* i = begin; i < end; ++i)
-        for (ExtMove* j = i + 1; j < end; ++j)
+    for (ExtMove* i = begin; i < mid; ++i)
+        for (ExtMove* j = i + 1; j < mid; ++j)
             if (j->value > i->value)
                 std::swap(*i, *j);
 }
