@@ -31,6 +31,7 @@
 
 namespace Stockfish {
 
+BloomFilter bloomFilter;
 
 // TTEntry struct is the 10 bytes transposition table entry, defined as below:
 //
@@ -130,6 +131,7 @@ TTWriter::TTWriter(TTEntry* tte) :
 void TTWriter::write(
   Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
     entry->save(k, v, pv, b, d, m, ev, generation8);
+    bloomFilter.insert(k);
 }
 
 
@@ -170,6 +172,7 @@ void TranspositionTable::resize(size_t mbSize, ThreadPool& threads) {
 // Initializes the entire transposition table to zero,
 // in a multi-threaded way.
 void TranspositionTable::clear(ThreadPool& threads) {
+    // bloomFilter.clear();
     generation8              = 0;
     const size_t threadCount = threads.num_threads();
 
@@ -221,17 +224,24 @@ uint8_t TranspositionTable::generation() const { return generation8; }
 // minus 8 times its relative age. TTEntry t1 is considered more valuable than
 // TTEntry t2 if its replace value is greater than that of t2.
 std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) const {
+    // If the bloom filter says the key was definitely never inserted, we can skip
+    if (!bloomFilter.contains(key))
+    {
+        // Return dummy TTData and a writer pointing to a dummy TTEntry
+        static TTEntry dummy;
+        return {false,
+                TTData{Move::none(), VALUE_NONE, VALUE_NONE, DEPTH_ENTRY_OFFSET, BOUND_NONE, false},
+                TTWriter(&dummy)};
+    }
 
     TTEntry* const tte   = first_entry(key);
     const uint16_t key16 = uint16_t(key);  // Use the low 16 bits as key inside the cluster
 
     for (int i = 0; i < ClusterSize; ++i)
         if (tte[i].key16 == key16)
-            // This gap is the main place for read races.
-            // After `read()` completes that copy is final, but may be self-inconsistent.
             return {tte[i].is_occupied(), tte[i].read(), TTWriter(&tte[i])};
 
-    // Find an entry to be replaced according to the replacement strategy
+    // Not found: choose a replacement slot
     TTEntry* replace = tte;
     for (int i = 1; i < ClusterSize; ++i)
         if (replace->depth8 - replace->relative_age(generation8) * 2

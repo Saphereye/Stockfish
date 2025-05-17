@@ -3,7 +3,6 @@
 #include "memory.h"
 #include <bitset>
 #include <cmath>
-#include <cstddef>
 
 const auto CAPACITY             = 9'585'059;
 const auto NO_OF_HASH_FUNCTIONS = 7;

@@ -25,9 +25,11 @@
 
 #include "memory.h"
 #include "types.h"
+#include "bloomfilter.h"
 
 namespace Stockfish {
 
+extern BloomFilter bloomFilter;
 class ThreadPool;
 struct TTEntry;
 struct Cluster;
