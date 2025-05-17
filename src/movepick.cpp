@@ -214,7 +214,7 @@ top:
         endMoves             = generate<CAPTURES>(pos, cur);
 
         score<CAPTURES>();
-        std::sort(cur, endMoves, [](const ExtMove& a, const ExtMove& b) {
+        std::stable_sort(cur, endMoves, [](const ExtMove& a, const ExtMove& b) {
             return a.value > b.value;  // descending order
         });
         ++stage;
@@ -240,10 +240,10 @@ top:
             endMoves = beginBadQuiets = endBadQuiets = generate<QUIETS>(pos, cur);
 
             score<QUIETS>();
-            auto pivot = std::partition(
+            auto pivot = std::stable_partition(
               cur, endMoves, [=](const ExtMove& m) { return m.value >= quiet_threshold(depth); });
 
-            std::sort(cur, pivot, [](const ExtMove& a, const ExtMove& b) {
+            std::stable_sort(cur, pivot, [](const ExtMove& a, const ExtMove& b) {
                 return a.value > b.value;  // descending order
             });
         }
@@ -290,7 +290,7 @@ top:
         endMoves = generate<EVASIONS>(pos, cur);
 
         score<EVASIONS>();
-        std::sort(cur, endMoves, [](const ExtMove& a, const ExtMove& b) {
+        std::stable_sort(cur, endMoves, [](const ExtMove& a, const ExtMove& b) {
             return a.value > b.value;  // descending order
         });
         ++stage;
