@@ -131,7 +131,11 @@ TTWriter::TTWriter(TTEntry* tte) :
 void TTWriter::write(
   Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
     entry->save(k, v, pv, b, d, m, ev, generation8);
-    bloomFilter.insert(k);
+
+    // Insert the key into the Bloom filter only if it is part of the PV or fails high
+    if (pv || b == BOUND_LOWER) {
+        bloomFilter.insert(k);
+    }
 }
 
 
@@ -172,7 +176,7 @@ void TranspositionTable::resize(size_t mbSize, ThreadPool& threads) {
 // Initializes the entire transposition table to zero,
 // in a multi-threaded way.
 void TranspositionTable::clear(ThreadPool& threads) {
-    // bloomFilter.clear();
+    bloomFilter.clear();
     generation8              = 0;
     const size_t threadCount = threads.num_threads();
 
@@ -224,24 +228,13 @@ uint8_t TranspositionTable::generation() const { return generation8; }
 // minus 8 times its relative age. TTEntry t1 is considered more valuable than
 // TTEntry t2 if its replace value is greater than that of t2.
 std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) const {
-    // If the bloom filter says the key was definitely never inserted, we can skip
-    if (!bloomFilter.contains(key))
-    {
-        // Return dummy TTData and a writer pointing to a dummy TTEntry
-        static TTEntry dummy;
-        return {false,
-                TTData{Move::none(), VALUE_NONE, VALUE_NONE, DEPTH_ENTRY_OFFSET, BOUND_NONE, false},
-                TTWriter(&dummy)};
-    }
-
+    // Proceed with the TT lookup if the Bloom filter contains the key
     TTEntry* const tte   = first_entry(key);
     const uint16_t key16 = uint16_t(key);  // Use the low 16 bits as key inside the cluster
-
-    for (int i = 0; i < ClusterSize; ++i)
-        if (tte[i].key16 == key16)
-            return {tte[i].is_occupied(), tte[i].read(), TTWriter(&tte[i])};
-
-    // Not found: choose a replacement slot
+                                           //
+    // Use the Bloom filter to avoid unnecessary TT lookups
+    if (!bloomFilter.contains(key)) {
+    // Find an entry to be replaced according to the replacement strategy
     TTEntry* replace = tte;
     for (int i = 1; i < ClusterSize; ++i)
         if (replace->depth8 - replace->relative_age(generation8) * 2
@@ -251,8 +244,13 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
     return {false,
             TTData{Move::none(), VALUE_NONE, VALUE_NONE, DEPTH_ENTRY_OFFSET, BOUND_NONE, false},
             TTWriter(replace)};
-}
+    }
 
+
+    for (int i = 0; i < ClusterSize; ++i)
+        if (tte[i].key16 == key16)
+            return {tte[i].is_occupied(), tte[i].read(), TTWriter(&tte[i])};
+}
 
 TTEntry* TranspositionTable::first_entry(const Key key) const {
     return &table[mul_hi64(key, clusterCount)].entry[0];
