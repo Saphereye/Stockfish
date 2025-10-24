@@ -150,10 +150,85 @@ std::uint64_t Engine::perft(const std::string& fen, Depth depth, bool isChess960
     return Benchmark::perft(fen, depth, isChess960);
 }
 
+// Helper function to get London System opening move if applicable
+// Returns Move::none() if not in a London System position
+namespace {
+Move get_london_system_move(const Position& pos) {
+    // Only play London System when we are White
+    if (pos.side_to_move() != WHITE)
+        return Move::none();
+    
+    // Check piece positions to determine which London System move to play
+    Piece wPawn = make_piece(WHITE, PAWN);
+    Piece wKnight = make_piece(WHITE, KNIGHT);
+    Piece wBishop = make_piece(WHITE, BISHOP);
+    
+    // Check the key squares for our pieces
+    bool d4Pawn = (pos.piece_on(SQ_D4) == wPawn);
+    bool e3Pawn = (pos.piece_on(SQ_E3) == wPawn);
+    bool c3Pawn = (pos.piece_on(SQ_C3) == wPawn);
+    bool Nf3 = (pos.piece_on(SQ_F3) == wKnight);
+    bool Bd3 = (pos.piece_on(SQ_D3) == wBishop);
+    bool Bf4 = (pos.piece_on(SQ_F4) == wBishop);
+    bool Bc1 = (pos.piece_on(SQ_C1) == wBishop);
+    bool Ng1 = (pos.piece_on(SQ_G1) == wKnight);
+    bool Nb1 = (pos.piece_on(SQ_B1) == wKnight);
+    bool d2Pawn = (pos.piece_on(SQ_D2) == wPawn);
+    bool e2Pawn = (pos.piece_on(SQ_E2) == wPawn);
+    bool c2Pawn = (pos.piece_on(SQ_C2) == wPawn);
+    
+    // 7. After c3, d4, e3, Nf3, Bd3: play Nbd2
+    if (d4Pawn && e3Pawn && c3Pawn && Nf3 && Bd3 && Nb1) {
+        return Move(SQ_B1, SQ_D2);
+    }
+    
+    // 6. After d4, e3, Nf3, Bd3: play c3
+    if (d4Pawn && e3Pawn && Nf3 && Bd3 && c2Pawn) {
+        return Move(SQ_C2, SQ_C3);
+    }
+    
+    // 5. After d4, Bf4, e3, Nf3: play Bd3
+    if (d4Pawn && e3Pawn && Nf3 && Bf4) {
+        return Move(SQ_F4, SQ_D3);
+    }
+    
+    // 4. After d4, Bf4, e3: play Nf3
+    if (d4Pawn && e3Pawn && Bf4 && Ng1) {
+        return Move(SQ_G1, SQ_F3);
+    }
+    
+    // 3. After d4 and Bf4: play e3
+    if (d4Pawn && Bf4 && e2Pawn) {
+        return Move(SQ_E2, SQ_E3);
+    }
+    
+    // 2. After d4: play Bf4
+    if (d4Pawn && Bc1 && e2Pawn) {
+        return Move(SQ_C1, SQ_F4);
+    }
+    
+    // 1. Starting position: play d4
+    if (d2Pawn && e2Pawn && c2Pawn && Bc1 && Ng1) {
+        return Move(SQ_D2, SQ_D4);
+    }
+    
+    return Move::none();
+}
+}
+
 void Engine::go(Search::LimitsType& limits) {
     assert(limits.perft == 0);
-    verify_networks();
 
+    // Check if we should play a London System move
+    Move londonMove = get_london_system_move(pos);
+    if (londonMove != Move::none()) {
+        // Convert move to UCI format and send it
+        std::string moveStr = UCIEngine::move(londonMove, pos.is_chess960());
+        updateContext.onBestmove(moveStr, "");
+        return;
+    }
+
+    verify_networks();
     threads.start_thinking(options, pos, states, limits);
 }
 void Engine::stop() { threads.stop = true; }
