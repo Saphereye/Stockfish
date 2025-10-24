@@ -1,6 +1,6 @@
-# London System Implementation
+# London System Implementation - Reward-Based Approach
 
-This fork of Stockfish has been modified to always play the London System opening when playing as White.
+This fork of Stockfish has been modified to encourage London System opening play when playing as White through a reward-based bonus system.
 
 ## What is the London System?
 
@@ -15,56 +15,75 @@ The London System is a popular chess opening characterized by:
 
 ## Implementation Details
 
-The implementation is in `src/engine.cpp` in the `get_london_system_move()` function. 
+The implementation uses a **reward-based approach** rather than hardcoding specific moves. This is in `src/london.h` and integrated into `src/movepick.cpp`.
 
 ### How it Works
 
-When the engine receives a `go` command:
-1. It first checks if a London System move should be played
-2. If the position matches one of the London System patterns, it immediately returns that move
-3. Otherwise, it proceeds with normal search using the neural network
+1. **Position Detection**: The `london_system_bonus()` function examines the current board position to identify London System opportunities
+2. **Move Bonuses**: Assigns large bonuses (100,000 points) to moves that follow London System patterns
+3. **Move Ordering**: These bonuses are applied during move ordering in the search algorithm
+4. **Natural Search**: The engine still searches all legal moves and evaluates positions normally
 
-This approach:
-- Bypasses the need for neural network files when in opening positions
-- Ensures consistent London System play as White
-- Returns to normal engine strength after the opening sequence
+### Key Advantages Over Hardcoding
+
+- **Position-Aware**: Checks actual piece placement, not just move sequences
+- **Flexible**: Works through Stockfish's natural search mechanism
+- **Tactical**: Can deviate from London System if tactically necessary
+- **Tunable**: Bonus values can be adjusted (currently hardcoded at 100,000)
+- **UCI Option**: Includes `London_System_Bonus` option (not currently used, reserved for future enhancement)
+
+## Current Behavior
+
+The engine will **strongly prefer** London System moves in the opening because they receive massive bonuses that prioritize them in move ordering. However:
+
+- The engine still evaluates all moves normally
+- Can choose non-London moves if they are tactically superior
+- Works best in typical opening positions
+- Bonuses only apply to White's moves
 
 ## Testing
 
-To test the London System implementation:
+To test the London System influence:
 
 ```bash
 cd src
 make -j build ARCH=x86-64
 
-# Test starting position - should play d4
-echo -e "uci\nisready\nposition startpos\ngo depth 1\nquit" | ./stockfish
+# Test starting position
+echo -e "uci\nisready\nposition startpos\ngo depth 10\nquit" | ./stockfish
 
-# Test after d4 d5 - should play Bf4
-echo -e "uci\nisready\nposition startpos moves d2d4 d7d5\ngo depth 1\nquit" | ./stockfish
-
-# Test after Bf4 - should play e3
-echo -e "uci\nisready\nposition startpos moves d2d4 d7d5 c1f4 g8f6\ngo depth 1\nquit" | ./stockfish
+# The engine should show preference for d4 and subsequent London moves
 ```
 
-Expected output:
-```
-bestmove d2d4
-bestmove c1f4
-bestmove e2e3
-```
+## UCI Options
+
+- **London_System_Bonus**: Currently implemented but not active (default 0, range 0-10000)
+  - Reserved for future use to make the bonus strength configurable
+  - Currently bonuses are hardcoded in `london.h`
 
 ## Limitations
 
-- Only works when playing as White (Black moves use normal search)
-- Only covers the main line London System setup (first 7 moves)
-- After the opening sequence, the engine requires neural network files to continue
-- Does not adapt to Black's responses (plays the same moves regardless)
+- Bonuses affect move **ordering**, not evaluation
+- Very strong tactical positions may override London System preference  
+- Only applies when playing as White
+- Limited to the first 7 moves of London System
+- Does not adapt to Black's specific responses
+
+## Technical Implementation
+
+**Files Modified:**
+- `src/engine.cpp`: Added UCI option for London_System_Bonus
+- `src/movepick.cpp`: Integrated bonus into move scoring for quiet moves
+- `src/london.h`: New header with position-aware bonus calculation
+
+The bonus is applied in the `score<QUIETS>()` function of MovePicker, which affects the order in which moves are searched during alpha-beta pruning.
 
 ## Future Enhancements
 
 Possible improvements:
-- Add variations based on Black's responses
-- Extend the opening book beyond the first 7 moves
-- Add an option to enable/disable London System forcing
+- Wire up UCI option to make bonus strength configurable at runtime
+- Add response-dependent variations
+- Extend beyond the first 7 moves
 - Support for other opening systems
+- Evaluation bonuses (not just move ordering)
+
