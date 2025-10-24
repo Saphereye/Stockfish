@@ -23,6 +23,7 @@
 #include <utility>
 
 #include "bitboard.h"
+#include "london.h"
 #include "misc.h"
 #include "position.h"
 
@@ -175,6 +176,8 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
             int v = threatByLesser[pt] & to ? -95 : 100 * bool(threatByLesser[pt] & from);
             m.value += bonus[pt] * v;
 
+            // Add London System bonus for early game
+            m.value += london_system_bonus(pos, m);
 
             if (ply < LOW_PLY_HISTORY_SIZE)
                 m.value += 8 * (*lowPlyHistory)[ply][m.from_to()] / (1 + ply);
