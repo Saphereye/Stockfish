@@ -52,6 +52,13 @@
 
 namespace Stockfish {
 
+int shuffleMinRule50   = 11;
+int shuffleMinPly      = 18;
+int shuffleMinNull     = 6;
+int shuffleMaxCycles   = 3;
+
+TUNE(shuffleMinRule50, shuffleMinPly, shuffleMinNull, shuffleMaxCycles)
+
 namespace TB = Tablebases;
 
 void syzygy_extend_pv(const OptionsMap&            options,
@@ -142,12 +149,23 @@ void update_all_stats(const Position& pos,
                       Move            ttMove);
 
 bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
-    if (pos.capture_stage(move) || pos.rule50_count() < 11)
+    if (pos.capture_stage(move) || pos.rule50_count() < shuffleMinRule50)
         return false;
-    if (pos.state()->pliesFromNull <= 6 || ss->ply < 18)
+    if (pos.state()->pliesFromNull <= shuffleMinNull || ss->ply < shuffleMinPly)
         return false;
-    return move.from_sq() == (ss - 2)->currentMove.to_sq()
-        && (ss - 2)->currentMove.from_sq() == (ss - 4)->currentMove.to_sq();
+
+    const StateInfo* si = pos.state();
+    for (int n = 1; n <= shuffleMaxCycles; ++n)
+    {
+        if (!si->previous || !si->previous->previous)
+            break;
+        si = si->previous->previous;
+        if (pos.state()->pliesFromNull < 2 * n)
+            break;
+        if (si->key == pos.state()->key)
+            return true;
+    }
+    return false;
 }
 
 }  // namespace
