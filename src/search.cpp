@@ -52,6 +52,13 @@
 
 namespace Stockfish {
 
+int A = 7;
+int B = 3;
+int C = -1;
+int D = 1;
+
+TUNE(A, B, C, D)
+
 namespace TB = Tablebases;
 
 void syzygy_extend_pv(const OptionsMap&            options,
@@ -913,7 +920,7 @@ Value Search::Worker::search(
         assert((ss - 1)->currentMove != Move::null());
 
         // Null move dynamic reduction based on depth
-        Depth R = 7 + depth / 3;
+        Depth R = A + depth / B + C * improving + D * opponentWorsening;
         do_null_move(pos, st, ss);
 
         Value nullValue = -search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth - R, false);
