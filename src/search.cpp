@@ -54,10 +54,13 @@ namespace Stockfish {
 
 int baseNullReduction = 7 * 128;
 int depthScaling = 128 / 3;
-int improvingBonus = -2 * 128;
-int opponentWorseningBonus = 2 * 128;
+int improvingBonus = 0;
+int opponentWorseningBonus = 0;
 
-TUNE(baseNullReduction, depthScaling, improvingBonus, opponentWorseningBonus);
+TUNE(baseNullReduction);
+TUNE(SetRange(0,128), depthScaling);
+TUNE(SetRange(-512,512), improvingBonus, opponentWorseningBonus);
+
 
 namespace TB = Tablebases;
 
