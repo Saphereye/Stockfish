@@ -52,12 +52,12 @@
 
 namespace Stockfish {
 
-int A = 7;
-int B = 3;
-int C = -1;
-int D = 1;
+int baseNullReduction = 7 * 128;
+int depthScaling = 128 / 3;
+int improvingBonus = -2 * 128;
+int opponentWorseningBonus = 2 * 128;
 
-TUNE(A, B, C, D)
+TUNE(baseNullReduction, depthScaling, improvingBonus, opponentWorseningBonus);
 
 namespace TB = Tablebases;
 
@@ -920,7 +920,7 @@ Value Search::Worker::search(
         assert((ss - 1)->currentMove != Move::null());
 
         // Null move dynamic reduction based on depth
-        Depth R = A + depth / B + C * improving + D * opponentWorsening;
+        Depth R = (baseNullReduction + depth * depthScaling + improvingBonus * improving + opponentWorseningBonus * opponentWorsening) / 128;
         do_null_move(pos, st, ss);
 
         Value nullValue = -search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth - R, false);
