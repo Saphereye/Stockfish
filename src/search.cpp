@@ -52,12 +52,15 @@
 
 namespace Stockfish {
 
-int shuffleMinRule50   = 11;
-int shuffleMinPly      = 18;
-int shuffleMinNull     = 6;
-int shuffleMaxCycles   = 3;
+int shuffleMinRule50   = 11 * 8;
+int shuffleMinPly      = 18 * 8;
+int shuffleMinNull     = 6 * 8;
+int shuffleMaxCycles   = 3 * 8;
 
-TUNE(shuffleMinRule50, shuffleMinPly, shuffleMinNull, shuffleMaxCycles)
+TUNE(shuffleMinRule50)
+TUNE(shuffleMinPly)
+TUNE(shuffleMinNull)
+TUNE(SetRange(1*8, 6*8), shuffleMaxCycles)
 
 namespace TB = Tablebases;
 
@@ -149,13 +152,13 @@ void update_all_stats(const Position& pos,
                       Move            ttMove);
 
 bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
-    if (pos.capture_stage(move) || pos.rule50_count() < shuffleMinRule50)
+    if (pos.capture_stage(move) || pos.rule50_count() < shuffleMinRule50 / 8)
         return false;
-    if (pos.state()->pliesFromNull <= shuffleMinNull || ss->ply < shuffleMinPly)
+    if (pos.state()->pliesFromNull <= shuffleMinNull / 8 || ss->ply < shuffleMinPly / 8)
         return false;
 
     const StateInfo* si = pos.state();
-    for (int n = 1; n <= shuffleMaxCycles; ++n)
+    for (int n = 1; n <= shuffleMaxCycles / 8; ++n)
     {
         if (!si->previous || !si->previous->previous)
             break;
