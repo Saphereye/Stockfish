@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <mutex>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -28,6 +29,7 @@
 #include <cstdlib>
 #include <initializer_list>
 #include <iostream>
+#include <fstream>
 #include <list>
 #include <ratio>
 #include <string>
@@ -64,7 +66,11 @@ using namespace Search;
 
 namespace {
 
-constexpr int SEARCHEDLIST_CAPACITY = 32;
+std::ofstream  nmpLog;
+std::atomic<int> nmpCounter{0};
+std::mutex     nmpMutex;
+std::atomic<bool> nmpLogOpen{false};
+constexpr int    SEARCHEDLIST_CAPACITY = 32;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
 // (*Scalers):
@@ -600,6 +606,14 @@ void Search::Worker::clear() {
     mainHistory.fill(0);
     captureHistory.fill(-678);
 
+    if (!nmpLogOpen.exchange(true))
+    {
+        std::lock_guard<std::mutex> lock(nmpMutex);
+        nmpLog.open("/home/adarsh/Coding/Stockfish/src/analysic/nmp_log.csv");
+        nmpLog << "depth,root_depth,null_margin,eval_margin,ply\n";
+        nmpLog.flush();
+    }
+
     // Each thread is responsible for clearing their part of shared history
     sharedHistory.correctionHistory.clear_range(0, numaThreadIdx, numaTotal);
     sharedHistory.pawnHistory.clear_range(-1238, numaThreadIdx, numaTotal);
@@ -917,6 +931,14 @@ Value Search::Worker::search(
         do_null_move(pos, st, ss);
 
         Value nullValue = -search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth - R, false);
+
+        if (++nmpCounter)
+        {
+            std::lock_guard<std::mutex> lock(nmpMutex);
+            nmpLog << depth << "," << rootDepth << "," << (nullValue - beta) << ","
+                   << (ss->staticEval - beta) << "," << ss->ply << "\n";
+            nmpLog.flush();
+        }
 
         undo_null_move(pos);
 
