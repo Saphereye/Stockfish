@@ -1060,6 +1060,8 @@ Value Search::Worker::search(
 
                 if (!is_decisive(value))
                     return value - (probCutBeta - beta);
+                else
+                    return value;
             }
         }
     }
