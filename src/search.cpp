@@ -1793,7 +1793,7 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta)
                 continue;
 
             // Do not search moves with bad enough SEE values
-            if (!pos.see_ge(move, -74))
+            if (!pos.see_ge(move, -74 - captureHistory[pos.moved_piece(move)][move.to_sq()][type_of(pos.piece_on(move.to_sq()))] / 48))
                 continue;
         }
 
