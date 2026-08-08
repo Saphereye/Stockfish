@@ -30,6 +30,40 @@ namespace Stockfish {
 
 namespace {
 
+struct ThreatByLesser {
+    Bitboard byType[KING + 1];
+};
+
+ThreatByLesser threat_by_lesser(const Position& pos, Color us) {
+
+    Color    enemy    = ~us;
+    Bitboard occupied = pos.pieces();
+
+    Bitboard pawnAttacks = enemy == WHITE ? pawn_attacks_bb<WHITE>(pos.pieces(WHITE, PAWN))
+                                          : pawn_attacks_bb<BLACK>(pos.pieces(BLACK, PAWN));
+
+    Bitboard knightAttacks = 0, bishopAttacks = 0, rookAttacks = 0;
+
+    for (Bitboard b = pos.pieces(enemy, KNIGHT); b;)
+        knightAttacks |= Attacks::attacks_bb<KNIGHT>(pop_lsb(b), occupied);
+
+    for (Bitboard b = pos.pieces(enemy, BISHOP); b;)
+        bishopAttacks |= Attacks::attacks_bb<BISHOP>(pop_lsb(b), occupied);
+
+    for (Bitboard b = pos.pieces(enemy, ROOK); b;)
+        rookAttacks |= Attacks::attacks_bb<ROOK>(pop_lsb(b), occupied);
+
+    const Bitboard byMinor = pawnAttacks | knightAttacks | bishopAttacks;
+
+    ThreatByLesser t{};
+    t.byType[PAWN]           = 0;
+    t.byType[KNIGHT]         = t.byType[BISHOP] = pawnAttacks;
+    t.byType[ROOK]           = byMinor;
+    t.byType[QUEEN]          = byMinor | rookAttacks;
+    t.byType[KING]           = 0;
+    return t;
+}
+
 enum Stages {
     // generate main search moves
     MAIN_TT,
@@ -198,16 +232,9 @@ ExtMove* MovePicker::score(const MoveList<Type>& ml) {
 
     Color us = pos.side_to_move();
 
-    [[maybe_unused]] Bitboard threatByLesser[KING + 1];
+    ThreatByLesser threatByLesser{};
     if constexpr (Type == QUIETS)
-    {
-        threatByLesser[PAWN]   = 0;
-        threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.attacks_by<PAWN>(~us);
-        threatByLesser[ROOK] =
-          pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatByLesser[KNIGHT];
-        threatByLesser[QUEEN] = pos.attacks_by<ROOK>(~us) | threatByLesser[ROOK];
-        threatByLesser[KING]  = 0;
-    }
+        threatByLesser = threat_by_lesser(pos, us);
 
     ExtMove* it = cur;
     for (auto move : ml)
@@ -241,7 +268,8 @@ ExtMove* MovePicker::score(const MoveList<Type>& ml) {
 
             // penalty for moving to a square threatened by a lesser piece
             // or bonus for escaping an attack by a lesser piece.
-            int v = 20 * (bool(threatByLesser[pt] & from) - bool(threatByLesser[pt] & to));
+            int v = 20
+                 * (bool(threatByLesser.byType[pt] & from) - bool(threatByLesser.byType[pt] & to));
             m.value += PieceValue[pt] * v;
 
 
