@@ -1585,10 +1585,14 @@ moves_loop:  // When in check, search starts here
         bonusScale += 142 * (!ss->inCheck && bestValue <= ss->staticEval - 106);
         bonusScale += 159 * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - 68);
 
+        const int failGap = std::max(0, int(ss->staticEval - bestValue));
+        bonusScale += std::min(failGap / 5, 200);
+
         bonusScale = std::max(bonusScale, 0);
 
         // scaledBonus ranges from 0 to roughly 2.3M, overflows happen for multipliers larger than 900
-        const int scaledBonus = std::min(150 * depth - 85, 1337) * bonusScale;
+        int scaledBonus = std::min(150 * depth - 85, 1337) * bonusScale;
+        scaledBonus     = scaledBonus * (256 + std::min(failGap, 384)) / 256;
 
         update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
                                       scaledBonus * 263 / 16384);
