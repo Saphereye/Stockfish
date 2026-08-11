@@ -986,11 +986,15 @@ Value Search::Worker::search(
     // Use static evaluation difference to improve quiet move ordering
     if (((ss - 1)->currentMove).is_ok() && !(ss - 1)->inCheck && !priorCapture)
     {
-        int evalDiff = std::clamp(-int((ss - 1)->staticEval + ss->staticEval), -189, 194) + 60;
-        mainHistory[~us][((ss - 1)->currentMove).raw()] << evalDiff * 11;
+        // opponent worsenement?
+        int swing    = -int((ss - 1)->staticEval + ss->staticEval);
+        int evalDiff = std::clamp(swing, -189, 194) + 60;
+        mainHistory[~us][((ss - 1)->currentMove).raw()]
+          << evalDiff * (11 + std::min(5, std::abs(swing) / 25));
         if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
             && ((ss - 1)->currentMove).type_of() != PROMOTION)
-            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq] << evalDiff * 13;
+            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq]
+              << evalDiff * (13 + std::min(5, std::abs(swing) / 25));
     }
 
 
