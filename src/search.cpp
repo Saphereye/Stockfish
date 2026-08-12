@@ -665,6 +665,12 @@ void Search::Worker::do_move(
 
         prefetch(&(*(ss - 1)->continuationCorrectionHistory)[pc][to]);
         prefetch(&(*(ss - 3)->continuationCorrectionHistory)[pc][to]);
+
+        for (int back : {1, 2})
+        {
+            if (((ss - back)->currentMove).is_ok())
+                prefetch(&(*((ss - back)->continuationHistory))[pc][to]);
+        }
     }
 
     ++nodes;
