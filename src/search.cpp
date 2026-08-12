@@ -1374,7 +1374,8 @@ moves_loop:  // When in check, search starts here
 
             ss->reduction = newDepth - d;
             value         = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
-            ss->reduction = 0;
+            const int reducedDepth = ss->reduction;
+            ss->reduction          = 0;
 
             // Do a full-depth search when reduced LMR search fails high
             // (*Scaler) Shallower searches here don't scale well
@@ -1392,6 +1393,11 @@ moves_loop:  // When in check, search starts here
 
                 // Post LMR continuation history updates
                 update_continuation_histories(ss, movedPiece, move.to_sq(), 1334);
+
+                if (!capture && reducedDepth > 0)
+                    update_quiet_histories(
+                      pos, ss, *this, move,
+                      std::min(3 * std::max(0, int(value - alpha)), 311));
             }
         }
 
