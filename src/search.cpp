@@ -1387,7 +1387,8 @@ moves_loop:  // When in check, search starts here
                     value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
 
                 // Post LMR continuation history updates
-                update_continuation_histories(ss, movedPiece, move.to_sq(), 1334);
+                if (value > alpha)
+                    update_continuation_histories(ss, movedPiece, move.to_sq(), 1334);
             }
         }
 
