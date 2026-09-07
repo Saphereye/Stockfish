@@ -41,6 +41,10 @@ struct Cluster;
 // We clearly separate TTData, a local copy of an entry, from TTWriter, which
 // writes to the global table.
 
+inline u32 tt_tag(Key k) {
+    const u64 mixed = k ^ (k >> 32) ^ (k * 0xD6E8FEB86659FD93ULL);
+    return u32((mixed ^ (mixed >> 20)) & ((1u << 20) - 1));
+}
 
 // A copy of the data already in an entry (possibly collided). Probes and reads
 // are racy and non-atomic, possibly resulting in inconsistent data.
@@ -75,8 +79,10 @@ struct TTWriter {
 
    private:
     friend class TranspositionTable;
+    Cluster* cluster;
+    int      slot;
     TTEntry* entry;
-    TTWriter(TTEntry* tte);
+    TTWriter(Cluster* c, int s);
 };
 
 
